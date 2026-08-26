@@ -55,6 +55,13 @@ SIMPLE_JWT = {
 
 CORS_ALLOW_ALL_ORIGINS = True
 
+# The Node adapter service owns Airtable credentials and makes the real
+# Airtable API calls (via the official `airtable` npm package). Django only
+# forwards the task payload to it over HTTP — see projects/airtable_client.py.
+AIRTABLE_ADAPTER_URL = os.environ.get('AIRTABLE_ADAPTER_URL', 'http://airtable-adapter:4000')
+AIRTABLE_ADAPTER_SHARED_SECRET = os.environ.get('AIRTABLE_ADAPTER_SHARED_SECRET', '')
+AIRTABLE_ADAPTER_TIMEOUT = float(os.environ.get('AIRTABLE_ADAPTER_TIMEOUT', '30'))
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'

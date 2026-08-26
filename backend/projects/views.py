@@ -5,6 +5,7 @@ from django.db import connection
 from users.serializers import UserSerializer
 from .models import Project, Membership, Task, Comment
 from .serializers import ProjectDetailSerializer, TaskSerializer, CommentSerializer
+from .airtable_client import export_project_tasks, AirtableAdapterError
 
 
 def _get_membership(user, project_id):
@@ -272,6 +273,20 @@ class MemberAddView(APIView):
         return Response({'ok': True, 'role': membership_obj.role}, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 
+def _task_to_export_payload(task, project_id):
+    return {
+        'id': str(task.id),
+        'title': task.title,
+        'description': task.description,
+        'status': task.status,
+        'assigneeEmail': task.assignee.email if task.assignee else None,
+        'assigneeName': task.assignee.name if task.assignee else None,
+        'projectId': str(project_id),
+        'createdAt': task.created_at.isoformat(),
+        'updatedAt': task.updated_at.isoformat(),
+    }
+
+
 class ExportView(APIView):
     def post(self, request, project_id):
         membership = _get_membership(request.user, project_id)
@@ -281,4 +296,11 @@ class ExportView(APIView):
             return Response({'error': 'only admins and members can export'}, status=status.HTTP_403_FORBIDDEN)
 
         tasks = Task.objects.filter(project_id=project_id).select_related('assignee', 'created_by')
-        return Response({'exported': 0, 'tasks': TaskSerializer(tasks, many=True).data})
+        payload = [_task_to_export_payload(t, project_id) for t in tasks]
+
+        try:
+            result = export_project_tasks(payload)
+        except AirtableAdapterError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+
+        return Response({'export': result})

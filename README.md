@@ -20,6 +20,7 @@ docker-compose exec backend python manage.py seed
 # Run the test suites
 docker-compose exec backend python -m pytest          # Django tests
 docker-compose exec frontend npm test                 # React tests
+docker-compose exec airtable-adapter npm test          # Node adapter tests
 
 # The app is now running at http://localhost:3000
 # Backend API at http://localhost:8000
@@ -113,17 +114,51 @@ curl -H "Authorization: Bearer <token>" http://localhost:8000/api/projects
 ### Export
 - `POST /api/projects/:id/export` — Export tasks to Airtable (admin or member)
 
-## Airtable Export (Part 3c)
+## Airtable Export
 
-Set these in your `.env` before running the export:
+`POST /api/projects/:id/export` is the only public export endpoint. Django checks
+membership authorization (admin/member only; viewers and non-members get 403),
+gathers every task in the project, and forwards them to a separate Node service —
+`airtable-adapter/` — which is the *only* place Airtable credentials live and the
+only place that talks to the real Airtable API (via the official `airtable` npm
+package, not `pyairtable`). Django and the React frontend never see the Airtable
+API key.
+
+```
+Browser --auth--> Django (POST /api/projects/:id/export)
+                     |
+                     | membership check, builds task payload
+                     v
+                   Node airtable-adapter (holds AIRTABLE_API_KEY)
+                     |
+                     v
+                   Airtable REST API
+```
+
+Each task is matched to an Airtable record by a "TaskBoard Task ID" field holding
+the task's stable UUID, so re-running an export updates existing records instead
+of creating duplicates. The adapter batches creates/updates in groups of at most
+10, retries transient failures (429/5xx/network errors) with bounded exponential
+backoff and jitter, never retries permanent failures (400/401/403/404/422), and
+isolates a bad record so it doesn't block the rest of the batch.
+
+Set these in your `.env` before running a real export:
 
 ```
 AIRTABLE_API_KEY=your_personal_access_token
 AIRTABLE_BASE_ID=appXXXXXXXXXXXXXX
 AIRTABLE_TABLE_NAME=Tasks
+AIRTABLE_ADAPTER_SHARED_SECRET=   # optional; set the same value on both sides to lock down the adapter
 ```
 
-The backend uses `pyairtable` for real API calls. `backend/projects/airtable_mock.py` is a test double — use it in unit tests, not in production code.
+Your Airtable table needs these fields: `TaskBoard Task ID` (single line text,
+used as the upsert key), `Title`, `Description`, `Status`, `Assignee`,
+`Project ID`, `Created At`, `Updated At`.
+
+`backend/projects/airtable_mock.py` is a test double for Django's adapter
+interaction tests — Django never imports the real `airtable` package. The Node
+service has its own Jest test double (`airtable-adapter/__tests__/fakeTable.js`)
+that stands in for the `airtable` npm package's Table API.
 
 ## Tech Stack
 
@@ -139,4 +174,6 @@ The backend uses `pyairtable` for real API calls. `backend/projects/airtable_moc
 | ORM | Django ORM |
 | Database | PostgreSQL 16 |
 | Backend tests | pytest-django |
+| Airtable adapter | Node 20, Express, official `airtable` npm package |
+| Adapter tests | Jest + Supertest |
 | Container | Docker + docker-compose |

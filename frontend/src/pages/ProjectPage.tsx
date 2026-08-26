@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiFetch, getToken } from "@/lib/api-client";
+import { apiFetch, getStoredUser, getToken } from "@/lib/api-client";
 import { Header } from "@/components/Header";
 import { StatusColumn } from "@/components/StatusColumn";
 import { TaskDetail } from "@/components/TaskDetail";
-import type { ApiProjectDetail, ApiTask, TaskStatus } from "@/types";
+import { ExportButton } from "@/components/ExportButton";
+import type { ApiExportResult, ApiProjectDetail, ApiTask, TaskStatus } from "@/types";
 import { STATUS_ORDER } from "@/types";
 
 export default function ProjectPage() {
@@ -17,6 +18,8 @@ export default function ProjectPage() {
   const [newTitle, setNewTitle] = useState("");
   const [newColumn, setNewColumn] = useState<TaskStatus>("todo");
   const [error, setError] = useState<string | null>(null);
+  const [exportResult, setExportResult] = useState<ApiExportResult | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!getToken()) navigate("/login", { replace: true });
@@ -40,7 +43,23 @@ export default function ProjectPage() {
     onError: (err) => setError(err instanceof Error ? err.message : "create failed"),
   });
 
+  const exportProject = useMutation({
+    mutationFn: () =>
+      apiFetch<{ export: ApiExportResult }>(`/api/projects/${id}/export`, { method: "POST" }),
+    onSuccess: (data) => {
+      setExportError(null);
+      setExportResult(data.export);
+    },
+    onError: (err) => {
+      setExportResult(null);
+      setExportError(err instanceof Error ? err.message : "export failed");
+    },
+  });
+
   const project = data?.project;
+  const currentUser = getStoredUser();
+  const currentMembership = project?.memberships.find((m) => m.user.id === currentUser?.id);
+  const canExport = currentMembership ? currentMembership.role !== "viewer" : false;
   const tasksByStatus: Record<TaskStatus, ApiTask[]> = {
     todo: [],
     in_progress: [],
@@ -87,6 +106,14 @@ export default function ProjectPage() {
                 </p>
               </div>
             </div>
+
+            <ExportButton
+              canExport={canExport}
+              onExport={() => exportProject.mutate()}
+              isExporting={exportProject.isPending}
+              result={exportResult}
+              error={exportError}
+            />
 
             <section className="bg-surface border border-border rounded-lg p-4 mb-6">
               <h2 className="text-sm font-medium mb-3">add a task</h2>

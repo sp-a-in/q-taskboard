@@ -19,6 +19,7 @@ services:
       - "8000:8000"
     depends_on:
       - db
+      - airtable-adapter
     environment:
       POSTGRES_DB: taskboard
       POSTGRES_USER: taskboard
@@ -27,6 +28,22 @@ services:
       POSTGRES_PORT: "5432"
       DJANGO_SECRET_KEY: dev-secret-change-me
       DEBUG: "true"
+      AIRTABLE_ADAPTER_URL: http://airtable-adapter:4000
+      AIRTABLE_ADAPTER_SHARED_SECRET: ${AIRTABLE_ADAPTER_SHARED_SECRET:-}
+
+  airtable-adapter:
+    build: ./airtable-adapter
+    volumes:
+      - ./airtable-adapter:/app
+      - airtable_adapter_node_modules:/app/node_modules
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: "4000"
+      AIRTABLE_API_KEY: ${AIRTABLE_API_KEY:-}
+      AIRTABLE_BASE_ID: ${AIRTABLE_BASE_ID:-}
+      AIRTABLE_TABLE_NAME: ${AIRTABLE_TABLE_NAME:-Tasks}
+      ADAPTER_SHARED_SECRET: ${AIRTABLE_ADAPTER_SHARED_SECRET:-}
 
   frontend:
     build: ./frontend
@@ -43,3 +60,4 @@ services:
 volumes:
   pgdata:
   frontend_node_modules:
+  airtable_adapter_node_modules:
