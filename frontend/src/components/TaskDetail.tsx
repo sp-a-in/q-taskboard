@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api-client";
-import type { ApiTask, ApiProjectMember, TaskStatus } from "@/types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiFetch, getStoredUser } from "@/lib/api-client";
+import type { ApiComment, ApiTask, ApiProjectMember, TaskStatus } from "@/types";
 import { STATUS_LABELS, STATUS_ORDER } from "@/types";
+import { CommentList } from "./CommentList";
 
 type Props = {
   task: ApiTask;
@@ -18,6 +19,29 @@ export function TaskDetail({ task, projectId, members, onClose }: Props) {
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [assigneeId, setAssigneeId] = useState<string>(task.assigneeId ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [commentError, setCommentError] = useState<string | null>(null);
+
+  const currentUser = getStoredUser();
+  const currentMembership = members.find((m) => m.user.id === currentUser?.id);
+  const canPostComments = currentMembership ? currentMembership.role !== "viewer" : false;
+
+  const { data: commentsData } = useQuery({
+    queryKey: ["task-comments", task.id],
+    queryFn: () => apiFetch<{ comments: ApiComment[] }>(`/api/tasks/${task.id}/comments`),
+  });
+
+  const postComment = useMutation({
+    mutationFn: (body: string) =>
+      apiFetch<{ comment: ApiComment }>(`/api/tasks/${task.id}/comments`, {
+        method: "POST",
+        body: JSON.stringify({ body }),
+      }),
+    onSuccess: () => {
+      setCommentError(null);
+      queryClient.invalidateQueries({ queryKey: ["task-comments", task.id] });
+    },
+    onError: (err) => setCommentError(err instanceof Error ? err.message : "failed to post comment"),
+  });
 
   const updateTask = useMutation({
     mutationFn: (input: Partial<ApiTask>) =>
@@ -119,6 +143,16 @@ export function TaskDetail({ task, projectId, members, onClose }: Props) {
               ))}
             </select>
           </label>
+        </div>
+
+        <div className="mb-4">
+          <CommentList
+            comments={commentsData?.comments ?? []}
+            canPost={canPostComments}
+            onSubmit={(body) => postComment.mutate(body)}
+            isSubmitting={postComment.isPending}
+            error={commentError}
+          />
         </div>
 
         {error && (
