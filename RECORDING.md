@@ -4,7 +4,7 @@ Two recordings cover this submission.
 
 ## Recording 1 — Authorization vulnerability, fix, and Comments (Part 3a)
 
-[LOOM RECORDING 1 URL]
+https://www.loom.com/share/e6efab495e664c17a4733035dfc6ebbe
 
 Covers:
 - The `PATCH /api/tasks/:id` authorization vulnerability (see `REVIEW.md`
@@ -19,7 +19,7 @@ Covers:
 
 ## Recording 2 — Airtable export (Part 3c)
 
-[LOOM RECORDING 2 URL]
+https://www.loom.com/share/7fbdca21701d452d9edf95345ebc54f0
 
 Covers:
 - The Airtable export architecture: Django (`POST /api/projects/:id/export`)
