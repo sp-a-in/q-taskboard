@@ -40,7 +40,10 @@ def export_project_tasks(tasks):
         data = {}
 
     if response.status_code >= 400:
-        message = data.get('error') if isinstance(data, dict) else None
+        if isinstance(data, dict):
+            message = ': '.join(filter(None, [data.get('error'), data.get('message')]))
+        else:
+            message = None
         raise AirtableAdapterError(message or f'airtable adapter returned {response.status_code}')
 
     return data

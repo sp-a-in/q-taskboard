@@ -74,7 +74,9 @@ async function createOne(table, task, idMap, results) {
 
 async function updateOne(table, task, idMap, results) {
   try {
-    await retryable(() => table.update([{ id: idMap.get(task.id), fields: taskToFields(task) }]));
+    await retryable(() =>
+      table.update([{ id: idMap.get(task.id), fields: taskToFields(task) }], { typecast: true }),
+    );
     results.updated.push(task.id);
   } catch (err) {
     results.failed.push({ taskId: task.id, error: err.message || String(err) });
@@ -105,7 +107,10 @@ async function createBatch(table, tasks, idMap, results) {
 async function updateBatch(table, tasks, idMap, results) {
   try {
     await retryable(() =>
-      table.update(tasks.map((task) => ({ id: idMap.get(task.id), fields: taskToFields(task) }))),
+      table.update(
+        tasks.map((task) => ({ id: idMap.get(task.id), fields: taskToFields(task) })),
+        { typecast: true },
+      ),
     );
     tasks.forEach((task) => results.updated.push(task.id));
   } catch (err) {
