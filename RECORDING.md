@@ -1,6 +1,6 @@
 # Screen Recordings
 
-Two recordings cover this submission.
+Three recordings cover this submission.
 
 ## Recording 1 — Authorization vulnerability, fix, and Comments (Part 3a)
 
@@ -36,6 +36,13 @@ Covers:
   `backend/projects/airtable_mock.py`) passing.
 - A real export against a live Airtable base, and a second export showing
   the same records get updated rather than duplicated.
+
+## Recording 3 — App walkthrough
+
+https://www.loom.com/share/b72a43099d5c4250b19503bfa4a165c8
+
+Covers:
+- A general walkthrough of the app.
 
 ---
 
